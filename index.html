@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>沖繩 5D4N 自駕小幫手</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet.js CSS & JS (地圖套件) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        washi: '#F7F5F0',
+                        sumi: '#2B2B2B',
+                        vermilion: '#C85A32',
+                        matcha: '#5B7051',
+                        mustard: '#D4A373',
+                        cardbg: '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #F7F5F0;
+            color: #2B2B2B;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        #map {
+            height: calc(100vh - 220px);
+            width: 100%;
+            border-radius: 1rem;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="pb-24 pt-4 px-4 max-w-md mx-auto min-h-screen flex flex-col justify-between">
+
+    <!-- Header / App Title -->
+    <header class="mb-3 flex justify-between items-center bg-cardbg p-3.5 rounded-2xl shadow-sm border border-gray-100">
+        <div>
+            <span class="text-[10px] font-bold tracking-widest text-vermilion uppercase">Okinawa 5 Days Drive</span>
+            <h1 class="text-lg font-bold tracking-tight text-sumi">沖繩自駕小幫手</h1>
+        </div>
+        <div class="text-right">
+            <span class="text-[10px] text-gray-400">秋季預報</span>
+            <div class="text-xs font-semibold flex items-center justify-end gap-1 text-sumi">
+                <i data-lucide="sun" class="w-3.5 h-3.5 text-mustard"></i> 晴朗 27°C
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="app-content" class="flex-1">
+       
+        <!-- 1. 行程區塊 -->
+        <section id="tab-itinerary" class="space-y-3">
+            <!-- 天數切換 Slider -->
+            <div class="flex space-x-2 overflow-x-auto hide-scrollbar pb-1">
+                <button onclick="switchDay(1)" id="day-btn-1" class="day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sumi text-white transition">Day 1 (9/23)</button>
+                <button onclick="switchDay(2)" id="day-btn-2" class="day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition">Day 2 (9/24)</button>
+                <button onclick="switchDay(3)" id="day-btn-3" class="day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition">Day 3 (9/25)</button>
+                <button onclick="switchDay(4)" id="day-btn-4" class="day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition">Day 4 (9/26)</button>
+                <button onclick="switchDay(5)" id="day-btn-5" class="day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition">Day 5 (9/27)</button>
+            </div>
+
+            <!-- 動態 Day 行程內容區域 -->
+            <div id="day-content" class="space-y-3"></div>
+        </section>
+
+        <!-- 2. 地圖區塊 -->
+        <section id="tab-map" class="hidden space-y-3">
+            <div class="flex space-x-2 overflow-x-auto hide-scrollbar pb-1">
+                <button onclick="switchMapDay(1)" id="map-day-btn-1" class="map-day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sumi text-white transition">Day 1 地圖</button>
+                <button onclick="switchMapDay(2)" id="map-day-btn-2" class="map-day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition">Day 2 地圖</button>
+                <button onclick="switchMapDay(3)" id="map-day-btn-3" class="map-day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition">Day 3 地圖</button>
+                <button onclick="switchMapDay(4)" id="map-day-btn-4" class="map-day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition">Day 4 地圖</button>
+                <button onclick="switchMapDay(5)" id="map-day-btn-5" class="map-day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition">Day 5 地圖</button>
+            </div>
+           
+            <div id="map" class="shadow-sm border border-gray-200"></div>
+        </section>
+
+        <!-- 3. 工具區塊 (航班/住宿/緊急聯絡/記帳) -->
+        <section id="tab-tools" class="hidden space-y-4">
+            <h2 class="text-base font-bold text-sumi mb-1">旅途資訊與工具</h2>
+
+            <!-- 航班資訊卡片 -->
+            <div class="bg-cardbg p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2">
+                <div class="flex items-center gap-2 font-bold text-sumi border-b border-gray-100 pb-2 text-sm">
+                    <i data-lucide="plane" class="w-4 h-4 text-vermilion"></i> 航班資訊 (9/23 - 9/27)
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="p-2.5 bg-washi rounded-xl space-y-1">
+                        <span class="font-bold text-vermilion">去程 (9/23 週三)</span>
+                        <div class="text-sumi font-semibold">09:35 ➔ 12:10</div>
+                        <div class="text-gray-400">抵達那霸機場 (OKA)</div>
+                    </div>
+                    <div class="p-2.5 bg-washi rounded-xl space-y-1">
+                        <span class="font-bold text-matcha">回程 (9/27 週日)</span>
+                        <div class="text-sumi font-semibold">13:15 ➔ 13:50</div>
+                        <div class="text-gray-400">10:45 前須完成還車</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 住宿資訊卡片 -->
+            <div class="bg-cardbg p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2">
+                <div class="flex items-center gap-2 font-bold text-sumi border-b border-gray-100 pb-2 text-sm">
+                    <i data-lucide="building" class="w-4 h-4 text-mustard"></i> 住宿飯店資訊
+                </div>
+                <div class="text-xs space-y-2">
+                    <div class="p-2.5 bg-washi rounded-xl flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sumi">Day 1 & Day 4: 那霸市區飯店</div>
+                            <div class="text-gray-500">HOTEL TORIFITO NAHA ASAHIBASHI</div>
+                        </div>
+                        <span class="text-vermilion font-bold">~$1,100/晚</span>
+                    </div>
+                    <div class="p-2.5 bg-washi rounded-xl flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sumi">Day 2: 美國村海景飯店</div>
+                            <div class="text-gray-500">VESSEL HOTEL CAMPANA OKINAWA</div>
+                        </div>
+                        <span class="text-matcha font-bold">美國村海景</span>
+                    </div>
+                    <div class="p-2.5 bg-washi rounded-xl flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sumi">Day 3: 名護溫馨旅店</div>
+                            <div class="text-gray-500">little island 名護</div>
+                        </div>
+                        <span class="text-vermilion font-bold">~$1,700/晚</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 緊急聯絡電話 -->
+            <div class="bg-cardbg p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2">
+                <div class="flex items-center gap-2 font-bold text-sumi border-b border-gray-100 pb-2 text-sm">
+                    <i data-lucide="phone-call" class="w-4 h-4 text-vermilion"></i> 緊急聯絡電話
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <a href="tel:110" class="p-2.5 bg-red-50 text-vermilion rounded-xl text-center font-bold">警察局 (110)</a>
+                    <a href="tel:119" class="p-2.5 bg-red-50 text-vermilion rounded-xl text-center font-bold">救護車/消防 (119)</a>
+                    <div class="col-span-2 p-2.5 bg-washi rounded-xl text-[11px] text-gray-600">
+                        駐日代表處那霸分處緊急聯絡電話：<br>
+                        <a href="tel:+81-98-862-7008" class="font-bold text-sumi underline text-xs">+81-98-862-7008</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 離線記帳 / 預算表 -->
+            <div class="bg-cardbg p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+                <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                    <div class="flex items-center gap-2 font-bold text-sumi text-sm">
+                        <i data-lucide="wallet" class="w-4 h-4 text-matcha"></i> 離線記帳 (LocalStorage)
+                    </div>
+                    <span id="total-expenses" class="text-xs font-bold text-vermilion">總計: ¥0</span>
+                </div>
+               
+                <div class="flex gap-2">
+                    <input type="text" id="expense-title" placeholder="項目 (如: 蝦蝦飯)" class="flex-1 bg-washi text-xs px-3 py-2 rounded-xl outline-none">
+                    <input type="number" id="expense-amount" placeholder="日幣 ¥" class="w-20 bg-washi text-xs px-3 py-2 rounded-xl outline-none">
+                    <button onclick="addExpense()" class="bg-sumi text-white px-3 py-2 rounded-xl text-xs font-bold">新增</button>
+                </div>
+
+                <ul id="expense-list" class="space-y-1.5 text-xs max-h-40 overflow-y-auto pr-1"></ul>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-sumi text-white rounded-full py-3 px-6 shadow-2xl flex justify-around items-center z-50">
+        <button onclick="switchTab('itinerary')" id="nav-itinerary" class="flex flex-col items-center gap-1 text-mustard">
+            <i data-lucide="map-pin" class="w-5 h-5"></i>
+            <span class="text-[10px] tracking-wider">行程規劃</span>
+        </button>
+        <button onclick="switchTab('map')" id="nav-map" class="flex flex-col items-center gap-1 text-gray-400">
+            <i data-lucide="map" class="w-5 h-5"></i>
+            <span class="text-[10px] tracking-wider">地圖景點</span>
+        </button>
+        <button onclick="switchTab('tools')" id="nav-tools" class="flex flex-col items-center gap-1 text-gray-400">
+            <i data-lucide="layout-grid" class="w-5 h-5"></i>
+            <span class="text-[10px] tracking-wider">資訊工具</span>
+        </button>
+    </nav>
+
+    <!-- JS Logic -->
+    <script>
+        lucide.createIcons();
+
+        // 包含經緯度 (lat, lng) 的行程資料庫
+        const itineraryData = {
+            1: [
+                { id: "item-1-1", lat: 26.1986, lng: 127.6511, time: "12:10 - 13:30", title: "抵達沖繩 & 租車手續", category: "交通", spot: "那霸機場", desc: "入境後前往租車公司接駁據點辦理取車。" },
+                { id: "item-1-2", lat: 26.1756, lng: 127.6461, time: "14:00 - 15:30", title: "瀨長島 Umikaji Terrace", category: "景點", spot: "瀨長島", tags: ["重要預約", "必吃美食"], desc: "享受海景與飛機起降。<br><span class='text-vermilion font-bold'>【預約提醒】幸福鬆餅需要提前預約！</span>" },
+                { id: "item-1-3", lat: 26.1578, lng: 127.6534, time: "16:00 - 17:30", title: "DMM水族館 / Outlet採買", category: "景點", spot: "DMM Kariyushi水族館", tags: ["必買伴手禮"], desc: "室內水族館或 ASHIBINAA Outlet 購物行程。" },
+                { id: "item-1-4", lat: 26.2144, lng: 127.6838, time: "18:00 - 21:00", title: "國際通漫步 & 晚宴", category: "美食", spot: "國際通", tags: ["必吃美食", "重要預約"], desc: "<b>必吃：</b>鹽屋冰淇淋、Blue Seal、JEF苦瓜漢堡、純血統金武阿古豬。" }
+            ],
+            2: [
+                { id: "item-2-1", lat: 26.2522, lng: 127.7272, time: "09:30 - 10:30", title: "在地美味早餐", category: "美食", spot: "沖繩麵 Takaesu Soba", desc: "備選：Tang Tang 手作肉饅" },
+                { id: "item-2-2", lat: 26.2625, lng: 127.7153, time: "10:30 - 12:30", title: "港川外人住宅區", category: "景點", spot: "港川外人住宅", tags: ["必吃美食"], desc: "<b class='text-vermilion'>【必吃甜點】oHacorte 港川店 (水果塔)</b>、Houki Boshi 可麗露。" },
+                { id: "item-2-3", lat: 26.2628, lng: 127.7150, time: "12:30 - 13:30", title: "午餐：墨西哥 Tacos", category: "美食", spot: "墨西哥 Tacos 港川", tags: ["必吃美食"], desc: "道地沖繩風味塔可餅，亦可選雞湯拉麵屋石工夫。" },
+                { id: "item-2-4", lat: 26.3163, lng: 127.7578, time: "14:00 - 17:00", title: "美國村 American Village", category: "景點", spot: "沖繩美國村", tags: ["必買伴手禮"], desc: "潮流美式街區。必逛：SOHO, American Depot, RANCH。" },
+                { id: "item-2-5", lat: 26.3142, lng: 127.7961, time: "17:30 - 20:00", title: "永旺夢樂城來客夢", category: "景點", spot: "AEON MALL Okinawa Rycom", desc: "沖繩最大型購物中心，補貨採買第一首選。" }
+            ],
+            3: [
+                { id: "item-3-1", lat: 26.6944, lng: 127.8779, time: "09:30 - 12:30", title: "美麗海水族館", category: "景點", spot: "沖繩美麗海水族館", desc: "觀賞巨型黑潮之海鯨鯊。Motobu Genki Village 可體驗餵海豚。" },
+                { id: "item-3-2", lat: 26.6625, lng: 127.8883, time: "12:30 - 13:30", title: "午餐：岸本食堂", category: "美食", spot: "岸本食堂", tags: ["必吃美食"], desc: "沖繩名護必吃百年沖繩麵老店。" },
+                { id: "item-3-3", lat: 26.7119, lng: 128.0161, time: "14:00 - 16:30", title: "古宇利島絕景巡禮", category: "景點", spot: "古宇利島心形岩", tags: ["必吃美食"], desc: "<b class='text-vermilion'>【必吃美食】古宇利蝦蝦飯 🦐</b>、Shirasa 食堂海膽飯。" },
+                { id: "item-3-4", lat: 26.5925, lng: 127.9786, time: "17:00 - 18:30", title: "名護市區彈性景點", category: "景點", spot: "Neo Park Okinawa", desc: "Neo Park 動植物園 或 Nago Agri Park。" },
+                { id: "item-3-5", lat: 26.5882, lng: 127.9781, time: "19:00 - 21:00", title: "名護在地美食晚餐", category: "美食", spot: "松的古民家", tags: ["必吃美食"], desc: "名護嚴選：松的古民家、島豚七輪燒、暖暮拉麵、燒肉本部牧場。" }
+            ],
+            4: [
+                { id: "item-4-1", lat: 26.5911, lng: 127.9858, time: "09:00 - 10:30", title: "Orion 啤酒廠體驗", category: "景點", spot: "Orion Happy Park", desc: "參觀觀光工廠體驗 (駕駛請勿飲酒)。" },
+                { id: "item-4-2", lat: 26.5048, lng: 127.8581, time: "11:00 - 13:30", title: "恩納村海岸線巡禮", category: "景點", spot: "萬座毛", desc: "部瀨名海中公園、萬座毛象鼻岩、殘波岬燈塔。" },
+                { id: "item-4-3", lat: 26.1481, lng: 127.7503, time: "14:30 - 16:30", title: "沖繩世界文化王國 / 玉泉洞", category: "景點", spot: "玉泉洞", desc: "探索壯觀的鐘乳石洞與體驗琉球傳統文化。" },
+                { id: "item-4-4", lat: 26.1336, lng: 127.7733, time: "17:00 - 18:30", title: "濱邊的茶屋", category: "美食", spot: "濱邊的茶屋", tags: ["必吃美食"], desc: "海景第一排海邊景觀咖啡廳。" }
+            ],
+            5: [
+                { id: "item-5-1", lat: 26.2251, lng: 127.6800, time: "08:00 - 09:15", title: "泊港魚市場", category: "美食", spot: "泊港魚市場", tags: ["必吃美食"], desc: "美味生魚片、烤生蠔與海膽鮮甜海鮮早餐。" },
+                { id: "item-5-2", lat: 26.2207, lng: 127.6711, time: "09:30 - 10:30", title: "波上宮參拜", category: "景點", spot: "波上宮", desc: "崖邊神社參拜、購買御守祈福。" },
+                { id: "item-5-3", lat: 26.1986, lng: 127.6511, time: "10:45 前", title: "還車與前往機場", category: "交通", spot: "那霸機場", desc: "辦理租車歸還，搭乘接駁車前往機場，搭乘 13:15 班機返台。" }
+            ]
+        };
+
+        let currentDay = 1;
+        let mapInstance = null;
+        let mapMarkers = [];
+        let mapPolyline = null;
+
+        // 切換行程天數
+        function switchDay(day) {
+            currentDay = day;
+            document.querySelectorAll('.day-btn').forEach((btn, idx) => {
+                if (idx + 1 === day) {
+                    btn.className = "day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sumi text-white transition";
+                } else {
+                    btn.className = "day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition";
+                }
+            });
+
+            const container = document.getElementById('day-content');
+            const list = itineraryData[day] || [];
+           
+            container.innerHTML = list.map(item => {
+                const navUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.spot)}`;
+                let categoryColor = "bg-gray-100 text-gray-700";
+                if(item.category === "美食") categoryColor = "bg-orange-100 text-vermilion";
+                if(item.category === "景點") categoryColor = "bg-green-100 text-matcha";
+                if(item.category === "交通") categoryColor = "bg-blue-100 text-blue-800";
+
+                const tagsHtml = item.tags ? item.tags.map(t => `<span class="text-[10px] bg-vermilion text-white px-2 py-0.5 rounded-md font-bold mr-1">${t}</span>`).join('') : '';
+
+                return `
+                    <div id="${item.id}" class="bg-cardbg p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5 transition-all duration-300">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] px-2 py-0.5 rounded-md ${categoryColor} font-bold">${item.category}</span>
+                                <span class="text-xs text-gray-400 font-mono">${item.time}</span>
+                            </div>
+                            <a href="${navUrl}" target="_blank" class="flex items-center gap-1 text-[11px] bg-washi hover:bg-gray-200 px-2.5 py-1 rounded-full text-sumi font-medium border border-gray-200">
+                                <i data-lucide="navigation" class="w-3 h-3 text-vermilion"></i> 導航
+                            </a>
+                        </div>
+                        <h3 class="font-bold text-sumi text-sm">${item.title}</h3>
+                        ${tagsHtml ? `<div class="pt-0.5">${tagsHtml}</div>` : ''}
+                        <p class="text-xs text-gray-600 leading-relaxed">${item.desc}</p>
+                    </div>
+                `;
+            }).join('');
+           
+            lucide.createIcons();
+        }
+
+        // 切換 Tab
+        function switchTab(tab) {
+            document.getElementById('tab-itinerary').classList.add('hidden');
+            document.getElementById('tab-map').classList.add('hidden');
+            document.getElementById('tab-tools').classList.add('hidden');
+
+            document.getElementById('nav-itinerary').className = "flex flex-col items-center gap-1 text-gray-400";
+            document.getElementById('nav-map').className = "flex flex-col items-center gap-1 text-gray-400";
+            document.getElementById('nav-tools').className = "flex flex-col items-center gap-1 text-gray-400";
+
+            if(tab === 'itinerary') {
+                document.getElementById('tab-itinerary').classList.remove('hidden');
+                document.getElementById('nav-itinerary').className = "flex flex-col items-center gap-1 text-mustard";
+            } else if (tab === 'map') {
+                document.getElementById('tab-map').classList.remove('hidden');
+                document.getElementById('nav-map').className = "flex flex-col items-center gap-1 text-mustard";
+                initOrUpdateMap(currentDay);
+            } else {
+                document.getElementById('tab-tools').classList.remove('hidden');
+                document.getElementById('nav-tools').className = "flex flex-col items-center gap-1 text-mustard";
+            }
+        }
+
+        // 初始化與更新地圖
+        function initOrUpdateMap(day) {
+            if (!mapInstance) {
+                mapInstance = L.map('map').setView([26.3, 127.8], 10);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 18,
+                    attribution: '© OpenStreetMap'
+                }).addTo(mapInstance);
+            }
+
+            // 清除既有標記與路線
+            mapMarkers.forEach(m => mapInstance.removeLayer(m));
+            mapMarkers = [];
+            if (mapPolyline) mapInstance.removeLayer(mapPolyline);
+
+            const list = itineraryData[day] || [];
+            if (list.length === 0) return;
+
+            const latLngs = [];
+
+            list.forEach((item, index) => {
+                latLngs.push([item.lat, item.lng]);
+
+                // 依類別設定顏色
+                let color = "#5B7051"; // 景點: 綠色
+                if (item.category === "美食") color = "#C85A32"; // 美食: 橘紅
+                if (item.category === "交通") color = "#2563EB"; // 交通: 藍色
+
+                const marker = L.circleMarker([item.lat, item.lng], {
+                    radius: 9,
+                    fillColor: color,
+                    color: "#FFFFFF",
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                }).addTo(mapInstance);
+
+                const popupContent = `
+                    <div class="p-1 text-center font-sans">
+                        <div class="text-[10px] text-gray-400 font-bold">${item.time}</div>
+                        <div class="font-bold text-xs text-gray-800 mb-1">${item.title}</div>
+                        <button onclick="jumpToItinerary('${item.id}', ${day})" class="bg-sumi text-white text-[10px] px-2 py-1 rounded-md font-bold shadow-sm">
+                            📍 查看行程卡片
+                        </button>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                mapMarkers.push(marker);
+            });
+
+            // 畫景點連接點線
+            mapPolyline = L.polyline(latLngs, { color: '#C85A32', weight: 3, opacity: 0.6, dashArray: '5, 8' }).addTo(mapInstance);
+
+            // 自動縮放以涵蓋所有景點
+            const bounds = L.latLngBounds(latLngs);
+            mapInstance.fitBounds(bounds, { padding: [30, 30] });
+
+            // 更新地圖 Tab 上方的天數按鈕顏色
+            document.querySelectorAll('.map-day-btn').forEach((btn, idx) => {
+                if (idx + 1 === day) {
+                    btn.className = "map-day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sumi text-white transition";
+                } else {
+                    btn.className = "map-day-btn flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sumi border border-gray-200 transition";
+                }
+            });
+        }
+
+        function switchMapDay(day) {
+            currentDay = day;
+            initOrUpdateMap(day);
+        }
+
+        // 從地圖跳轉回行程卡片並高亮
+        function jumpToItinerary(elementId, day) {
+            switchDay(day);
+            switchTab('itinerary');
+           
+            setTimeout(() => {
+                const el = document.getElementById(elementId);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('ring-2', 'ring-vermilion');
+                    setTimeout(() => el.classList.remove('ring-2', 'ring-vermilion'), 2000);
+                }
+            }, 100);
+        }
+
+        // LocalStorage 記帳
+        let expenses = JSON.parse(localStorage.getItem('okinawa_5d4n_expenses') || '[]');
+
+        function renderExpenses() {
+            const listEl = document.getElementById('expense-list');
+            const totalEl = document.getElementById('total-expenses');
+            listEl.innerHTML = '';
+            let total = 0;
+
+            expenses.forEach((item, index) => {
+                total += Number(item.amount);
+                listEl.innerHTML += `
+                    <li class="flex justify-between items-center bg-washi p-2 rounded-xl">
+                        <span class="text-sumi font-medium">${item.title}</span>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold font-mono">¥${item.amount.toLocaleString()}</span>
+                            <button onclick="deleteExpense(${index})" class="text-gray-400 hover:text-red-500">
+                                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </li>
+                `;
+            });
+
+            totalEl.innerText = `總計: ¥${total.toLocaleString()}`;
+            localStorage.setItem('okinawa_5d4n_expenses', JSON.stringify(expenses));
+            lucide.createIcons();
+        }
+
+        function addExpense() {
+            const titleInput = document.getElementById('expense-title');
+            const amountInput = document.getElementById('expense-amount');
+            if(!titleInput.value || !amountInput.value) return;
+
+            expenses.push({ title: titleInput.value, amount: Number(amountInput.value) });
+            titleInput.value = '';
+            amountInput.value = '';
+            renderExpenses();
+        }
+
+        function deleteExpense(index) {
+            expenses.splice(index, 1);
+            renderExpenses();
+        }
+
+        // 初始化 Day 1 行程與記帳
+        switchDay(1);
+        renderExpenses();
+    </script>
+</body>
+</html>
